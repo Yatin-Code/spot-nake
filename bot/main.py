@@ -8,6 +8,14 @@ server on port 7860 (for Hugging Face Spaces), and runs the Telegram bot.
 
 from __future__ import annotations
 
+import socket
+
+# Force IPv4 resolution to bypass Docker IPv6 routing blackholes
+_old_getaddrinfo = socket.getaddrinfo
+def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    return _old_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+socket.getaddrinfo = _ipv4_getaddrinfo
+
 import asyncio
 import logging
 import sys

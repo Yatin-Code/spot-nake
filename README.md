@@ -27,7 +27,7 @@ SpotNake is a production-ready, AI-driven, multi-provider Telegram bot designed 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/spot-nake.git
+   git clone https://github.com/yatin-code/spot-nake.git
    cd spot-nake
    ```
 
