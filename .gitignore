@@ -1,5 +1,6 @@
 # Secrets
 .env
+.env.local
 oauth.json
 *.session
 implementation_plan.md
@@ -7,23 +8,26 @@ implementation_plan.md
 # Python
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 *.egg-info/
 dist/
 build/
 venv/
 .venv/
+env/
 
-# Downloads
+# Application Data & Downloads
+data/
 downloads/
+*.log
 *.mp3
 *.opus
 *.m4a
 *.webm
 
-# IDE
-.vscode/
-.idea/
-
-# OS
+# OS / Editor / IDE
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
