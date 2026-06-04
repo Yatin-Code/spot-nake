@@ -145,6 +145,14 @@ async def main() -> None:
         async with app:
             await app.initialize()
             await app.start()
+            
+            # Send startup notification to owner
+            try:
+                await app.bot.send_message(chat_id=settings.telegram_owner_id, text="hello")
+                logger.info(f"Sent startup message 'hello' to owner {settings.telegram_owner_id}")
+            except Exception as e:
+                logger.error(f"Failed to send startup message: {e}")
+
             await app.updater.start_polling()
             await stop_event.wait()
             
