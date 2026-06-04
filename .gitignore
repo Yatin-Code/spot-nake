@@ -1,0 +1,29 @@
+# Secrets
+.env
+oauth.json
+*.session
+implementation_plan.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+
+# Downloads
+downloads/
+*.mp3
+*.opus
+*.m4a
+*.webm
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
