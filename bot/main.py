@@ -79,8 +79,23 @@ async def main() -> None:
     )
     taste = TasteProfileStore(db)
 
-    # 5. Initialize Telegram Application
-    app = ApplicationBuilder().token(settings.telegram_bot_token).build()
+    # 5. Initialize Telegram Application with extended network timeouts and custom base URL
+    builder = (
+        ApplicationBuilder()
+        .token(settings.telegram_bot_token)
+        .connect_timeout(30.0)
+        .read_timeout(30.0)
+        .write_timeout(30.0)
+        .pool_timeout(30.0)
+    )
+    if settings.telegram_api_url:
+        builder.base_url(settings.telegram_api_url)
+        if "/bot" in settings.telegram_api_url:
+            file_url = settings.telegram_api_url.replace("/bot", "/file/bot")
+            builder.base_file_url(file_url)
+            logger.info(f"Using custom base_file_url: {file_url}")
+        logger.info(f"Using custom base_url: {settings.telegram_api_url}")
+    app = builder.build()
 
     # Store references in bot_data for handlers to access
     app.bot_data["db"] = db

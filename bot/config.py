@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # ── Telegram ──
     telegram_bot_token: str
     telegram_owner_id: int
+    telegram_api_url: str = ""
 
     # ── AI Providers (V1 Active) ──
     gemini_api_key: str          # Primary: intent parsing + embeddings
