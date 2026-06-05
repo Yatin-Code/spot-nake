@@ -91,10 +91,11 @@ async def main() -> None:
     builder = (
         ApplicationBuilder()
         .token(settings.telegram_bot_token)
-        .connect_timeout(30.0)
-        .read_timeout(30.0)
-        .write_timeout(30.0)
-        .pool_timeout(30.0)
+        .connect_timeout(60.0)
+        .read_timeout(60.0)
+        .write_timeout(60.0)
+        .pool_timeout(60.0)
+        .connection_pool_size(8)
     )
     if settings.telegram_api_url:
         builder.base_url(settings.telegram_api_url)
@@ -122,18 +123,24 @@ async def main() -> None:
     app.add_handler(CommandHandler("stats", stats_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, music_handler))
 
+    # Global error handler: log but never crash the polling loop
+    async def error_handler(update, context):
+        logger.error(f"Update caused error: {context.error}", exc_info=context.error)
+
+    app.add_error_handler(error_handler)
+
     # 7. Start Health Web Server
     runner = await start_health_server(settings.port)
 
-    # 8. Start Telegram Bot Polling
+    # 8. Start Telegram Bot Polling with retry logic
     logger.info("Bot handlers registered. Starting polling loop...")
     stop_event = asyncio.Event()
     loop = asyncio.get_running_loop()
-    
+
     def handle_signal():
         logger.info("Signal received. Initiating shutdown...")
         stop_event.set()
-        
+
     import signal
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
@@ -141,30 +148,52 @@ async def main() -> None:
         except NotImplementedError:
             pass
 
-    try:
-        async with app:
-            await app.initialize()
-            await app.start()
-            
-            # Send startup notification to owner
-            try:
-                await app.bot.send_message(chat_id=settings.telegram_owner_id, text="hello")
-                logger.info(f"Sent startup message 'hello' to owner {settings.telegram_owner_id}")
-            except Exception as e:
-                logger.error(f"Failed to send startup message: {e}")
+    MAX_RETRIES = 10
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            logger.info(f"Telegram connection attempt {attempt}/{MAX_RETRIES}...")
+            async with app:
+                await app.initialize()
+                await app.start()
+                logger.info("✅ Telegram bot initialized successfully!")
 
-            await app.updater.start_polling()
-            await stop_event.wait()
-            
-            logger.info("Stopping polling...")
-            await app.updater.stop()
-            await app.stop()
-    except Exception as e:
-        logger.critical(f"Bot crashed: {e}", exc_info=True)
-    finally:
-        logger.info("Shutting down SpotNake...")
-        await runner.cleanup()
-        await db.disconnect()
+                # Send startup notification to owner (best-effort)
+                try:
+                    await app.bot.send_message(
+                        chat_id=settings.telegram_owner_id,
+                        text="🟢 SpotNake is online!",
+                    )
+                    logger.info(f"Sent startup message to owner {settings.telegram_owner_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to send startup message (non-fatal): {e}")
+
+                await app.updater.start_polling(
+                    drop_pending_updates=True,
+                    allowed_updates=["message", "callback_query"],
+                )
+                logger.info("✅ Polling started. Bot is live!")
+                await stop_event.wait()
+
+                logger.info("Stopping polling...")
+                await app.updater.stop()
+                await app.stop()
+
+            # Clean exit — don't retry
+            break
+        except Exception as e:
+            logger.error(f"Attempt {attempt} failed: {e}")
+            if attempt < MAX_RETRIES:
+                wait = min(2 ** attempt, 60)
+                logger.info(f"Retrying in {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                logger.critical(
+                    f"All {MAX_RETRIES} attempts failed. Giving up.", exc_info=True
+                )
+
+    logger.info("Shutting down SpotNake...")
+    await runner.cleanup()
+    await db.disconnect()
 
 
 if __name__ == "__main__":
